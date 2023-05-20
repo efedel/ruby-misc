@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+# A wrapper script to invoke JRuby on the DRb-Processing daemon.
+
+DAEMON = File.join(File.dirname(__FILE__), 'processing_daemon')
+
+module Processing
+  module Wrapper
+
+    def self.get_jruby
+      # detect system JRuby
+      jruby = `which jruby`.chomp
+      return jruby if (! jruby.empty?)
+
+      # detect RVM-managed JRuby
+      rvm = `which rvm`
+      return nil if rvm.empty?
+
+      jruby = `rvm list`.split("\n").select { |line| 
+                                        line.strip.start_with? 'jruby' }.first
+      return nil if ! jruby
+
+      "rvm #{jruby.strip.split(' ').first} do ruby "
+    end
+
+    def self.exec_jruby_daemon(port)
+      jruby = get_jruby
+      jruby && exec "#{jruby} #{DAEMON} #{port.to_i}"
+      $stderr.puts "No JRUBY found!"
+      return 1
+    end
+
+  end
+end
+
+if __FILE__ == $0
+  port = ARGV.count > 0 ? ARGV.first.to_i.to_s : '' 
+  Processing::Wrapper::exec_jruby_daemon(ARGV.count > 0 ? ARGV.first : '')
+end

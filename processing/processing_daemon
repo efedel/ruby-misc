@@ -1,0 +1,64 @@
+#!/usr/bin/env jruby
+# DRb-wrapped daemon to interface with Processing
+
+raise ScriptError.new("Lucene requires JRuby") unless RUBY_PLATFORM =~ /java/
+
+require 'drb'
+require 'rubygems'
+require 'json'
+
+class BlurImageSketch < Processing::App
+
+  def setup
+    size 300, 300
+    frameRate 30
+    noLoop
+  end
+
+  def draw
+  end
+end
+
+# =============================================================================
+class ProcessingServer < Processing::App
+  DEFAULT_PORT = 59595
+
+  attr_reader :usage_count
+
+  def initialize
+    @usage_count = 0
+  end
+
+  def self.start(port)
+    port ||= DEFAULT_PORT
+    DRb.start_service "druby://localhost:#{port}", self.new
+    puts "processing daemon started (#{Process.pid}). Connect to #{DRb.uri}"
+   
+    trap('HUP') { DRb.stop_service; ProcessingServer.start(port) }
+    trap('INT') { puts 'Stopping processing daemon'; DRb.stop_service }
+
+    DRb.thread.join
+  end
+
+  def inc_usage
+    @usage_count += 1
+  end
+
+  def dec_usage
+    @usage_count -= 1
+  end
+
+  def stop_if_unused
+    DRb.stop_service if @usage_count <= 0
+  end
+
+  # ----------------------------------------------------------------------
+  def blur_image(path)
+    BlurImageSketch.new path
+  end
+end
+
+# ----------------------------------------------------------------------
+if __FILE__ == $0
+  ProcessingServer.start(ARGV.count > 0 ? ARGV.first.to_i : nil)
+end

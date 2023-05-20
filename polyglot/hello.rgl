@@ -1,0 +1,7 @@
+# test file for polyglot example
+puts "Initializing"
+    class Hello
+        def initialize()
+            puts "Hello, world\n"
+        end
+    end

@@ -1,0 +1,87 @@
+BfdSection, SymInfo, HashTable ?, ArchInfo, BfdSymbol, BfdTarget, Bfd
+
+class Bfd:
+	@name
+	@target
+	@format
+	@flags	# direction ?
+	@sections
+	@start_address
+	@symbols
+	@arch_info
+	@children [for archives]
+	@tdata	# optional -- backend data
+	@udata	# optional -- application private data
+
+	ctor: create( file or path )
+	section( int/name )
+	[] = sections? bytes?
+	
+end
+
+
+
+BfdTarget
+	name
+	bfd_flavor:
+	unknown, aout, coff, ecoff, xcoff, elf, ieee, nlm,
+	oasys, tekhex, srec, ihex, som, os9k, versados,
+	msdos, ovax, evax, mmo, mach_o, pef, perf_xlib, sym
+	bfd_flavor flavor
+	bfd_endian byteorder, header_byteorder
+	object_flags
+	section_flags
+	symbol_leading_char
+	ar_pad_char
+	ar_max_namelen
+	...
+	alternative_target
+	backend_data
+
+	...byteswap routines
+	check_format()
+	set_format
+	write_contents
+	close_and_cleanup
+	new_section_hook
+	get_section_contents
+
+Bfd:
+	int id
+	filename
+	bfd_target xvec
+	iostream
+	bfd_iovec iovec
+	cacheable
+	target_defaulted
+	lru_prev, lru_next
+	where
+	opened_once
+	mtime_set
+	ifd
+	bfd_format format
+	bfd_direction: no, read, write, both
+	flags
+	origin
+	output_has_begun
+	section_htab
+	bfd_section sections
+		section_last
+		section_count
+	start_address
+	symcount
+	outsymbols
+	dynsymcount
+	arch_info
+	no_export
+	tdata
+	usrdata
+	memory
+
+bfd_error:
+no_error, system_call, invalid_target, wrong_format, wrong_object_format,
+invalid_operation, no_memory, no_symbols, no_armap, no_more_archived_files,
+malformed_archive, file_not_recognized, file_ambiguously_recognized,
+no_contents, nonrepresentable_section, no_debug_section, bad_value,
+file_truncated, file_too_big, on_input, invalid_error_code
+

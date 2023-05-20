@@ -1,0 +1,93 @@
+#!/usr/bin/env jruby
+# DRb service providing Tika facade.
+
+raise ScriptError.new("Tika requires JRuby") unless RUBY_PLATFORM =~ /java/
+
+require 'java'
+require 'tika-app-1.1.jar'
+
+require 'tika_service'
+
+# =============================================================================
+module Tika
+
+  module ContentHandler
+    Body = Java::org.apache.tika.sax.BodyContentHandler
+    Boilerpipe = Java::org.apache.tika.parser.html.BoilerpipeContentHandler
+    Writeout = Java::org.apache.tika.sax.WriteOutContentHandler
+  end
+
+  module Parser
+    Auto = Java::org.apache.tika.parser.AutoDetectParser
+  end
+
+  module Detector
+    Default = Java::org.apache.tika.detect.DefaultDetector
+    Language = Java::org.apache.tika.language.LanguageIdentifier
+  end
+
+  Metadata = Java::org.apache.tika.metadata.Metadata
+
+  class Service
+    # ----------------------------------------------------------------------
+    # JRuby Bridge
+
+    # Number of clients connected to TikaServer
+    attr_reader :usage_count
+
+    def initialize
+      @usage_count = 0
+      Tika::Detector::Language.initProfiles
+    end
+
+    def inc_usage; @usage_count += 1; end
+    def dec_usage; @usage_count -= 1; end
+    def stop_if_unused; DRb.stop_service if (usage_count <= 0); end
+
+    def self.drb_start(port)
+      port ||= DEFAULT_PORT
+
+      DRb.start_service "druby://localhost:#{port.to_i}", self.new
+      puts "tika daemon started (#{Process.pid}). Connect to #{DRb.uri}"
+     
+      trap('HUP') { DRb.stop_service; Tika::Service.drb_start(port) }
+      trap('INT') { puts 'Stopping tika daemon'; DRb.stop_service }
+
+      DRb.thread.join
+    end
+
+    # ----------------------------------------------------------------------
+    # Tika Facade
+
+    def parse(str)
+      input = java.io.ByteArrayInputStream.new(str.to_java.get_bytes)
+      content = Tika::ContentHandler::Body.new(-1)
+      metadata = Tika::Metadata.new
+
+      Tika::Parser::Auto.new.parse(input, content, metadata)
+      lang = Tika::Detector::Language.new(input.to_string)
+
+      { :content => content.to_string, 
+        :language => lang.getLanguage(),
+        :metadata => metadata_to_hash(metadata) }
+    end
+
+    def metadata_to_hash(mdata)
+      h = {}
+      Metadata.constants.each do |name| 
+        begin
+          val = mdata.get(Metadata.const_get name)
+          h[name.downcase.to_sym] = val if val
+        rescue NameError
+          # nop
+        end
+      end
+      h
+    end
+
+  end
+end
+
+# ----------------------------------------------------------------------
+# main()
+Tika::Service.drb_start ARGV.first if __FILE__ == $0
