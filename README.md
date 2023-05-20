@@ -3,6 +3,7 @@ All sorts of scrap Ruby code.
 Some of the more interesting ones:
 
 imdb_lookup.rb
+radlibs
 sfpm-to-rpm.rb
 twitsearch.rb
 url_expander.rb
